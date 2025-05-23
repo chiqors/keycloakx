@@ -1,75 +1,66 @@
-# values.yaml for KeycloakX Helm chart
+# values.yaml for Keycloak Helm chart
 
 # Basic image configuration
 image:
   repository: quay.io/keycloak/keycloak
-  tag: "26.2"
+  # IMPORTANT: Your deploy command used chart version 18.10.0.
+  # This chart version will have its own default Keycloak image tag.
+  # If you want to override it, set the tag here.
+  # Example: tag: "24.0.4"
+  # If you want to use the chart's default for 18.10.0, you can comment 'tag' out or leave it.
+  # For consistency with previous troubleshooting, let's assume you want to control it:
+  tag: "24.0.4" # Verify and set your desired Keycloak version
   pullPolicy: IfNotPresent
 
 # Replica count
 replicas: 1
 
-# Container resource requests and limits
+# Resources
 resources:
   requests:
     cpu: 500m
     memory: 1Gi
   limits:
-    cpu: 1
+    cpu: "1"
     memory: 2Gi
 
-# Service monitor configuration
-serviceMonitor:
-  enabled: false
-
-# RBAC configuration
-rbac:
-  create: true
-  rules: []
-
-# Service account configuration
+# Service Account Configuration for Workload Identity
 serviceAccount:
-  create: true
-  name: ""
+  create: false # MODIFIED: Tell Helm NOT to create the ServiceAccount
+  # name should match the KSA_NAME parameter from your deploy script,
+  # which is the KSA your script creates and annotates.
+  name: "keycloak"
+  annotations:
+    # This annotation is applied by the deploy script directly to the KSA.
+    # If the chart still tries to read/apply annotations even when create=false,
+    # having this templated here ensures it's consistent.
+    iam.gke.io/gcp-service-account: "{{ .Values.cloudsql.gsaEmail }}"
 
-# Security context
-podSecurityContext:
-  fsGroup: 1000
-
-securityContext:
-  runAsUser: 1000
-  runAsNonRoot: true
-
-# HTTP configuration (for development purposes)
-http:
-  enabled: true
-  port: 8080
-  relativePath: "/"
-
-# Disable the PostgreSQL dependency since we're using an external database
+# Disable PostgreSQL dependency
 postgresql:
   enabled: false
 
-# Custom values for Google Cloud SQL
+# Cloud SQL Proxy Configuration
 cloudsql:
-  project: spheregcp-test
-  region: asia-southeast2
-  instance: spheres-sql-instance
+  project: "spheregcp-test"        # Default, overridden by deploy script
+  region: "asia-southeast2"        # Default, overridden by deploy script
+  instance: "spheres-sql-instance" # Default, overridden by deploy script
+  # GSA Email to be used by Workload Identity
+  gsaEmail: "keycloak-sql-proxy-gsa@spheregcp-test.iam.gserviceaccount.com" # Default, overridden by deploy script
 
 extraContainers: |
   - name: cloudsql-proxy
-    image: gcr.io/cloudsql-docker/gce-proxy:1.17
+    image: gcr.io/cloudsql-docker/gce-proxy:1.33.9 # Use a recent stable version
     command:
-      - /cloud_sql_proxy
-    args:
-      - -instances={{ .Values.cloudsql.project }}:{{ .Values.cloudsql.region }}:{{ .Values.cloudsql.instance }}=tcp:5432
-      - -credential_file=/secrets/cloudsql/credentials.json
-    volumeMounts:
-      - name: cloudsql-creds
-        mountPath: /secrets/cloudsql
-        readOnly: true
+      - "/cloud_sql_proxy"
+      - "-instances={{ .Values.cloudsql.project }}:{{ .Values.cloudsql.region }}:{{ .Values.cloudsql.instance }}=tcp:0.0.0.0:5432"
+    securityContext:
+      runAsNonRoot: true
+    ports:
+      - name: psql-proxy
+        containerPort: 5432
 
-# Database configuration
+# Database configuration for Keycloak
 db:
   vendor: postgres
   existingSecret: keycloak-db-credentials
@@ -77,24 +68,38 @@ db:
     username: POSTGRES_USER
     password: POSTGRES_PASSWORD
 
-# Configure the startup command to use dev mode for now
+# Keycloak command
 command:
   - "/opt/keycloak/bin/kc.sh"
   - "start-dev"
   - "--import-realm"
 
-# Additional environment variables
+# Keycloak Environment Variables
 extraEnv: |
   - name: KC_DB
     value: "postgres"
   - name: KC_DB_URL
-    value: "jdbc:postgresql://10.49.80.3:5432/keycloak" # Updated to use the internal IP
+    value: "jdbc:postgresql://127.0.0.1:5432/keycloak"
+  - name: KC_DB_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: {{ .Values.db.existingSecret | quote }}
+        key: {{ .Values.db.existingSecretKey.username | quote }}
+  - name: KC_DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: {{ .Values.db.existingSecret | quote }}
+        key: {{ .Values.db.existingSecretKey.password | quote }}
   - name: KC_PROXY
     value: "edge"
   - name: PROXY_ADDRESS_FORWARDING
     value: "true"
+  - name: KC_PROXY_X_FORWARDED_HOST_ENABLED
+    value: "true"
   - name: KC_HOSTNAME_STRICT
     value: "false"
+  # - name: KC_HOSTNAME
+  #   value: {{ if and .Values.ingress.enabled .Values.ingress.rules (gt (len .Values.ingress.rules) 0) }}{{ (index .Values.ingress.rules 0).host | quote }}{{ else }}"keycloak.local"{{ end }}
   - name: KC_HTTP_ENABLED
     value: "true"
   - name: KC_HEALTH_ENABLED
@@ -102,39 +107,47 @@ extraEnv: |
   - name: KC_METRICS_ENABLED
     value: "true"
 
-# Custom realm configuration
+# Volumes
 extraVolumes: |
   - name: realm-config
     configMap:
       name: custom-realm-config
-  - name: cloudsql-creds
-    secret:
-      secretName: cloudsql-instance-credentials
 
 extraVolumeMounts: |
   - name: realm-config
     mountPath: "/opt/keycloak/data/import"
     readOnly: true
 
-# Configure service
+# Service
 service:
-  type: ClusterIP
+  type: ClusterIP # Will be overridden by --set service.type=LoadBalancer from your command
   port: 80
-  annotations: {}
 
-# Configure ingress
-# HTTPS configuration
+# Ingress (details omitted for brevity, ensure it's configured as needed)
 https:
-  enabled: true  # Set to false to disable HTTPS
-  managedCertificate: "keycloak-certificate"  # Name of your managed certificate
-
+  enabled: true # Will be overridden by --set https.enabled=false from your command
 ingress:
-  enabled: true
+  enabled: true # Will be overridden by --set ingress.enabled=false from your command
+  className: "gce"
   annotations:
-    kubernetes.io/ingress.class: "gce"
     kubernetes.io/ingress.global-static-ip-name: "your-static-ip-name"
+    networking.gke.io/managed-certificates: "keycloak-certificate"
   rules:
-    - host: "keycloak.example.com"  # Replace with your domain
+    - host: "keycloak.example.com"
       paths:
         - path: /
           pathType: Prefix
+
+# RBAC and other settings from previous values.yaml
+rbac:
+  create: true # This RBAC is for Keycloak itself, not the service account for the pod.
+  rules: []
+podSecurityContext:
+  fsGroup: 1000
+securityContext:
+  runAsUser: 1000
+  runAsNonRoot: true
+http: # This seems duplicated, http settings usually under a main key or KC_HTTP_ENABLED is enough
+  enabled: true
+  port: 8080
+  relativePath: "/"
