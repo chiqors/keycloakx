@@ -8,7 +8,7 @@ CONFIGMAP_TEMPLATE_PATH="k8s/v1/ConfigMap/custom-realm-config.yaml.template"
 # Output path for the generated ConfigMap YAML
 CONFIGMAP_OUTPUT_PATH="k8s/v1/ConfigMap/custom-realm-config.yaml"
 # The key in the ConfigMap where the realm JSON will be stored
-REALM_JSON_KEY="app-realm.json" # This must match the key in custom-realm-config.yaml.template
+REALM_JSON_KEY="app-realm-realm.json" # This must match the key in custom-realm-config.yaml.template
 
 # Colors for output
 BLUE="\033[0;34m"

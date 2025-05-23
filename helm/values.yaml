@@ -3,13 +3,7 @@
 # Basic image configuration
 image:
   repository: quay.io/keycloak/keycloak
-  # IMPORTANT: Your deploy command used chart version 18.10.0.
-  # This chart version will have its own default Keycloak image tag.
-  # If you want to override it, set the tag here.
-  # Example: tag: "24.0.4"
-  # If you want to use the chart's default for 18.10.0, you can comment 'tag' out or leave it.
-  # For consistency with previous troubleshooting, let's assume you want to control it:
-  tag: "24.0.4" # Verify and set your desired Keycloak version
+  tag: "26.2"
   pullPolicy: IfNotPresent
 
 # Replica count
@@ -106,6 +100,12 @@ extraEnv: |
     value: "true"
   - name: KC_METRICS_ENABLED
     value: "true"
+  - name: KC_HTTP_RELATIVE_PATH
+    value: "/auth"
+  - name: KEYCLOAK_ADMIN
+    value: "admin"
+  - name: KEYCLOAK_ADMIN_PASSWORD
+    value: "yourStrongPassword!123"
 
 # Volumes
 extraVolumes: |

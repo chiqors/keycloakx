@@ -4,7 +4,7 @@ metadata:
   name: custom-realm-config
   namespace: keycloak
 data:
-  app-realm.json: |
+  app-realm-realm.json: |
       {
           "id": "app-realm",
           "realm": "app-realm",
