@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-client-ids
+  namespace: keycloak
+data:
+  KEYCLOAK_IMPORT_CLIENT_ID_BIDAN: bidan-app-client
+  KEYCLOAK_IMPORT_CLIENT_ID_CADRE: cadre-app-client
+  KEYCLOAK_IMPORT_CLIENT_ID_CAPACITY_BUILDING: capacity-building
+  KEYCLOAK_IMPORT_CLIENT_ID_FHIR_CORE: fhir-core
+  KEYCLOAK_IMPORT_CLIENT_ID_FHIR_CORE_APP: fhir-core-app
+  KEYCLOAK_IMPORT_CLIENT_ID_FHIR_SERVER_AUTH: fhir-server-with-auth-client
+  KEYCLOAK_IMPORT_CLIENT_ID_FHIR_TOOLING: fhir-tooling
+  KEYCLOAK_IMPORT_CLIENT_ID_FHIR_WEB: fhir-web-client
+  KEYCLOAK_IMPORT_CLIENT_ID_INTEROPERABILITY_LAYER_SPHERES: interoperability-layer-spheres
+  KEYCLOAK_IMPORT_CLIENT_ID_OPENFN: OpenFn-client
+  KEYCLOAK_IMPORT_CLIENT_ID_OPENSRP_V2: opensrp-v2-app-client
+  KEYCLOAK_IMPORT_CLIENT_ID_VACCINATOR: vaccinator-app-client
+  KEYCLOAK_IMPORT_CLIENT_REDIRECT_URI_FHIR_WEB: "https://fhir-web.spherespurbalingga.com/*"
+  KEYCLOAK_IMPORT_CLIENT_WEB_ORIGIN_FHIR_WEB: "https://fhir-web.spherespurbalingga.com"

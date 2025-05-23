@@ -1,0 +1,8 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: keycloak-certificate
+  namespace: keycloak  # Adjust to your namespace
+spec:
+  domains:
+    - keycloak.example.com  # Replace with your domain

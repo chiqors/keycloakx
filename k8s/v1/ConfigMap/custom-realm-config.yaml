@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: custom-realm-config
+  namespace: keycloak
+data:
+  app-realm.json: |
+      {
+          "id": "app-realm",
+          "realm": "app-realm",
+          "displayName": "App Realm",
+          "enabled": true,
+          "sslRequired": "external",
+          "registrationAllowed": false,
+          "clients": [
+              {
+                  "clientId": "web-app",
+                  "rootUrl": "http://34.36.240.146",
+                  "redirectUris": [
+                      "http://34.36.240.146/*"
+                  ],
+                  "webOrigins": [
+                      "http://34.36.240.146"
+                  ],
+                  "publicClient": true,
+                  "protocol": "openid-connect",
+                  "enabled": true
+              }
+          ],
+          "roles": {
+              "realm": [
+                  {
+                      "name": "user",
+                      "description": "Regular user with limited access"
+                  },
+                  {
+                      "name": "admin",
+                      "description": "Administrator with full access"
+                  }
+              ]
+          },
+          "defaultRoles": [
+              "user"
+          ]
+      }

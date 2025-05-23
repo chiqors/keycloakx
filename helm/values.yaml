@@ -1,0 +1,140 @@
+# values.yaml for KeycloakX Helm chart
+
+# Basic image configuration
+image:
+  repository: quay.io/keycloak/keycloak
+  tag: "26.2"
+  pullPolicy: IfNotPresent
+
+# Replica count
+replicas: 1
+
+# Container resource requests and limits
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 1
+    memory: 2Gi
+
+# Service monitor configuration
+serviceMonitor:
+  enabled: false
+
+# RBAC configuration
+rbac:
+  create: true
+  rules: []
+
+# Service account configuration
+serviceAccount:
+  create: true
+  name: ""
+
+# Security context
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsUser: 1000
+  runAsNonRoot: true
+
+# HTTP configuration (for development purposes)
+http:
+  enabled: true
+  port: 8080
+  relativePath: "/"
+
+# Disable the PostgreSQL dependency since we're using an external database
+postgresql:
+  enabled: false
+
+# Custom values for Google Cloud SQL
+cloudsql:
+  project: spheregcp-test
+  region: asia-southeast2
+  instance: spheres-sql-instance
+
+extraContainers: |
+  - name: cloudsql-proxy
+    image: gcr.io/cloudsql-docker/gce-proxy:1.17
+    command:
+      - /cloud_sql_proxy
+    args:
+      - -instances={{ .Values.cloudsql.project }}:{{ .Values.cloudsql.region }}:{{ .Values.cloudsql.instance }}=tcp:5432
+      - -credential_file=/secrets/cloudsql/credentials.json
+    volumeMounts:
+      - name: cloudsql-creds
+        mountPath: /secrets/cloudsql
+        readOnly: true
+
+# Database configuration
+db:
+  vendor: postgres
+  existingSecret: keycloak-db-credentials
+  existingSecretKey:
+    username: POSTGRES_USER
+    password: POSTGRES_PASSWORD
+
+# Configure the startup command to use dev mode for now
+command:
+  - "/opt/keycloak/bin/kc.sh"
+  - "start-dev"
+  - "--import-realm"
+
+# Additional environment variables
+extraEnv: |
+  - name: KC_DB
+    value: "postgres"
+  - name: KC_DB_URL
+    value: "jdbc:postgresql://10.49.80.3:5432/keycloak" # Updated to use the internal IP
+  - name: KC_PROXY
+    value: "edge"
+  - name: PROXY_ADDRESS_FORWARDING
+    value: "true"
+  - name: KC_HOSTNAME_STRICT
+    value: "false"
+  - name: KC_HTTP_ENABLED
+    value: "true"
+  - name: KC_HEALTH_ENABLED
+    value: "true"
+  - name: KC_METRICS_ENABLED
+    value: "true"
+
+# Custom realm configuration
+extraVolumes: |
+  - name: realm-config
+    configMap:
+      name: custom-realm-config
+  - name: cloudsql-creds
+    secret:
+      secretName: cloudsql-instance-credentials
+
+extraVolumeMounts: |
+  - name: realm-config
+    mountPath: "/opt/keycloak/data/import"
+    readOnly: true
+
+# Configure service
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+# Configure ingress
+# HTTPS configuration
+https:
+  enabled: true  # Set to false to disable HTTPS
+  managedCertificate: "keycloak-certificate"  # Name of your managed certificate
+
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "your-static-ip-name"
+  rules:
+    - host: "keycloak.example.com"  # Replace with your domain
+      paths:
+        - path: /
+          pathType: Prefix
